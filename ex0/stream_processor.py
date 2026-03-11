@@ -3,8 +3,10 @@ from typing import Any
 
 
 class DataProcessor(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         self.type = self.__class__.__name__.removesuffix("Processor")
+        self.message: str | None = None
+        self.validation: str | None = None
 
     @abstractmethod
     def process(self, data: Any) -> str:
@@ -30,8 +32,8 @@ class NumericProcessor(DataProcessor):
         if isinstance(data, (int, float)):
             temp = [data]
             the_sum = sum(temp)
-            self.message = f"Processed 1 numeric value, sum={the_sum}, "
-            f"avg={the_sum / 1}"
+            self.message = (f"Processed 1 numeric value, sum={the_sum}, "
+                            f"avg={the_sum / 1}")
             return f"Processing data: {temp}"
         the_sum = sum(data)
         the_len = len(data)
@@ -39,7 +41,7 @@ class NumericProcessor(DataProcessor):
             average = the_sum / the_len
         else:
             average = 0
-        self.message = (f"Processed {the_len} numeric value, sum={the_sum}, "
+        self.message = (f"Processed {the_len} numeric values, sum={the_sum}, "
                         f"avg={average:.1f}")
         return f"Processing data: {data}"
 
@@ -48,7 +50,7 @@ class NumericProcessor(DataProcessor):
             print(f"Validation: {self.validation}")
         if not isinstance(data, (list, int, float)) or isinstance(data, bool):
             return False
-        if isinstance(data, list) and\
+        if isinstance(data, list) and \
                 not all([type(x) in (int, float) for x in data]):
             return False
         return True
@@ -90,8 +92,9 @@ class LogProcessor(DataProcessor):
         data2 = data.split(":")
         if len(data2) != 2:
             raise ValueError("Incorrect format: 'level: message")
-        if data2[0] == "" or data2 == "":
-            raise ValueError("Empty Error Type or message will not be tolerated")
+        if data2[0] == "" or data2[1] == "":
+            raise ValueError("Empty Error Type or "
+                             "message will not be tolerated")
         mssg = data2[1]
         if data.startswith("ERROR"):
             level = "ALERT"
@@ -106,14 +109,13 @@ class LogProcessor(DataProcessor):
             print(f"Validation: {self.validation}")
         if isinstance(data, str):
             return True
-        
         return False
 
     def format_output(self, result: str) -> str:
         return super().format_output(result)
 
 
-def process_manager(processor: DataProcessor, data: Any):
+def process_manager(processor: DataProcessor, data: Any) -> None:
     try:
         print(f"Initializing {processor.type} Processor...")
         print(processor.process(data))
@@ -121,6 +123,10 @@ def process_manager(processor: DataProcessor, data: Any):
         print(processor.format_output(processor.message))
     except Exception as e:
         print(e.__class__.__name__, f": {e}\n")
+
+
+def polymorphic_processing(processor: DataProcessor, data: Any) -> None:
+    processor.process(data)
 
 
 print("=== CODE NEXUS - DATA PROCESSOR FOUNDATION ===\n")
@@ -135,7 +141,7 @@ data = [[1, 2, 3], "Hello World!", "INFO: System ready"]
 i = 1
 for processor, data in zip(processors, data):
     try:
-        processor.process(data)
+        polymorphic_processing(processor, data)
         print(f"Result {i}:", processor.message)
     except Exception as e:
         print(f"{e.__class__.__name__}: {e}\n")

@@ -3,9 +3,12 @@ from typing import Any, List, Dict, Union, Optional
 
 
 class DataStream(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         self.type = self.__class__.__name__.removesuffix("Stream")
-        self.alerts = []
+        self.alerts: List[int | float] = []
+        self.filtered_data: str | None = None
+        self.processed_data: str | None = None
+        self.message: str | None = None
 
     @abstractmethod
     def process_batch(self, data_batch: List[Any]) -> str:
@@ -22,13 +25,14 @@ class DataStream(ABC):
 
 
 class SensorStream(DataStream):
-    def __init__(self, stream_id):
+    def __init__(self, stream_id: str) -> None:
+        super().__init__()
         self.stream_id = stream_id
         self.type = "Environmental Data"
-        self.alerts = []
 
     def process_batch(self, data_batch: List[Any]) -> str:
         temps = []
+        self.alerts = []
         for i, item in enumerate(data_batch):
             if not isinstance(item, dict):
                 raise TypeError(f"Item at index {i} must be a dictionary")
@@ -88,10 +92,10 @@ class SensorStream(DataStream):
 
 
 class TransactionStream(DataStream):
-    def __init__(self, stream_id):
+    def __init__(self, stream_id: str) -> None:
+        super().__init__()
         self.stream_id = stream_id
         self.type = "Financial Data"
-        self.alerts = []
 
     def process_batch(self, data_batch: List[Any]) -> str:
         total_sales = 0
@@ -103,7 +107,7 @@ class TransactionStream(DataStream):
             for key, value in item.items():
                 if j == 1:
                     raise ValueError(f"Dict at index {i} cant have "
-                                    "more than one key:value pair")
+                                     "more than one key:value pair")
                 if not isinstance(value, (int, float)) or \
                         isinstance(value, bool):
                     raise TypeError(f"'{key}' at index {i} must be int or "
@@ -152,16 +156,16 @@ class TransactionStream(DataStream):
 
 
 class EventStream(DataStream):
-    def __init__(self, stream_id):
+    def __init__(self, stream_id: str) -> None:
+        super().__init__()
         self.stream_id = stream_id
         self.type = "System Events"
-        self.alerts = []
 
     def process_batch(self, data_batch: List[Any]) -> str:
         errors = 0
         for i, string in enumerate(data_batch):
             if not isinstance(string, (str)):
-                raise TypeError(f"'{string }' at index {i} must be a "
+                raise TypeError(f"'{string}' at index {i} must be a "
                                 f"string, got {type(string).__name__}")
             if string == "":
                 raise ValueError(f"value at index {i} cannot be empty")
@@ -175,7 +179,7 @@ class EventStream(DataStream):
     def filter_data(self,
                     data_batch: List[Any],
                     criteria: Optional[str] = None) -> List[Any]:
-        super().filter_data(data_batch, criteria)
+        return super().filter_data(data_batch, criteria)
 
     def get_stats(self) -> Dict[str, Union[str, int, float]]:
         return {
@@ -187,21 +191,22 @@ class EventStream(DataStream):
 
 
 class StreamProcessor:
-    def __init__(self):
-        self.streams = []
+    def __init__(self) -> None:
+        self.streams: List[DataStream] = []
 
-    def add_stream(self, stream):
+    def add_stream(self, stream: DataStream) -> None:
         self.streams.append(stream)
 
-    def streams_manager(self, data: List[Any], print_it):
+    def streams_manager(self, data_batch: List[Any], print_it: bool) -> None:
         try:
-            for stream, data in zip(self.streams, data_batch):
+            for stream, batch in zip(self.streams, data_batch):
                 try:
-                    message = stream.process_batch(data)
+                    if not isinstance(batch, list):
+                        raise TypeError(f"{batch}: Invalid Respect This "
+                                        "Format List[data]")
+                    message = stream.process_batch(batch)
                     stream_infos = stream.get_stats()
-                    if not isinstance(data, list):
-                        raise TypeError(f"{data}: Invalid Respect This "
-                                         "Format List[Dict]")
+
                 except Exception as e:
                     print("=========================================")
                     print(f"{e.__class__.__name__}: {e}")
@@ -215,13 +220,15 @@ class StreamProcessor:
                     print(message)
                     if stream.alerts != []:
                         print("ALERT!!:")
-                        print(f"the values {stream.alerts} are extreme temperature values\n")
+                        print(f"the values {stream.alerts} are extreme "
+                              "temperature values\n")
                 else:
                     print(stream_infos['result'])
         except Exception as e:
             print(f"{e.__class__.__name__}: {e}\n")
 
-    def Stream_filtering(self, data_batch, criteria):
+    def stream_filtering(self, data_batch: List[Any],
+                         criteria: List[Optional[str]]) -> None:
         print("\nStream filtering active: High-priority data only")
         print("Filtered results: ", end="")
         i = 0
@@ -279,7 +286,7 @@ if __name__ == "__main__":
         print("Batch 1 Results:")
         stream_processor.streams_manager(data_batch, False)
         criteria = ["critical", "large", None]
-        stream_processor.Stream_filtering(data_batch, criteria)
+        stream_processor.stream_filtering(data_batch, criteria)
         print("\nAll streams processed successfully. "
               "Nexus throughput optimal.")
 
